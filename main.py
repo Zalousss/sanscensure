@@ -2,6 +2,8 @@ import os
 import discord
 from discord.ext import commands
 from collections import defaultdict
+from flask import Flask
+from threading import Thread
 
 intents = discord.Intents.default()
 intents.members = True
@@ -55,6 +57,7 @@ async def on_member_join(member):
             if member_role and role not in member_role.roles:
                 await member_role.add_roles(role)
                 await member_role.send(f"Bravo, tu as accès maintenant au rôle {role.name} !")
+
 media_only_channels = set()
 
 @bot.command()
@@ -72,4 +75,19 @@ async def on_message(message):
     if message.channel.id in media_only_channels and not message.attachments:
         await message.delete()
     await bot.process_commands(message)
-bot.run(TOKEN)
+
+# ---- Serveur Flask pour Render ----
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Le bot est en ligne !", 200
+
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))  # Render assigne automatiquement un port
+    app.run(host="0.0.0.0", port=port)
+
+# Lancer Flask et le bot en même temps
+if __name__ == "__main__":
+    Thread(target=run_flask).start()  # Lancer Flask en arrière-plan
+    bot.run(TOKEN)
