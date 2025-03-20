@@ -12,7 +12,7 @@ invite_tracker = {}
 invitations_needed = {}  # Stocke le nombre d'invitations requises par serveur
 role_rewards = {}  # Stocke le rôle à donner par serveur
 user_invitations = defaultdict(int)  # Stocke le nombre d'invitations par utilisateur
-TOKEN = ''
+TOKEN = 
 
 @bot.event
 async def on_ready():
