@@ -1,3 +1,4 @@
+import os
 import discord
 from discord.ext import commands
 from collections import defaultdict
@@ -12,6 +13,7 @@ invite_tracker = {}
 invitations_needed = {}  # Stocke le nombre d'invitations requises par serveur
 role_rewards = {}  # Stocke le rôle à donner par serveur
 user_invitations = defaultdict(int)  # Stocke le nombre d'invitations par utilisateur 
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 @bot.event
 async def on_ready():
@@ -70,4 +72,4 @@ async def on_message(message):
     if message.channel.id in media_only_channels and not message.attachments:
         await message.delete()
     await bot.process_commands(message)
-bot.run('TOKEN')
+bot.run(TOKEN)
