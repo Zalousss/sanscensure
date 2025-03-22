@@ -15,7 +15,7 @@ invite_tracker = {}
 invitations_needed = {}  # Stocke le nombre d'invitations requises par serveur
 role_rewards = {}  # Stocke le rôle à donner par serveur
 user_invitations = defaultdict(int)  # Stocke le nombre d'invitations par utilisateur
-invite_log_channel = {}  # Stocke l'ID du salon où envoyer les notifications
+invite_log_channel = {}  # Stocke le salon de log d'invitations
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 @bot.event
@@ -26,16 +26,11 @@ async def on_ready():
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def inviteset(ctx, invites: int, role: discord.Role):
+async def inviteset(ctx, invites: int, role: discord.Role, log_channel: discord.TextChannel):
     invitations_needed[ctx.guild.id] = invites
     role_rewards[ctx.guild.id] = role
-    await ctx.send(f"Le rôle {role.name} sera donné après {invites} invitations.")
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def invitechannel(ctx, channel: discord.TextChannel):
-    invite_log_channel[ctx.guild.id] = channel.id
-    await ctx.send(f"Les notifications d'invitations seront envoyées dans {channel.mention}.")
+    invite_log_channel[ctx.guild.id] = log_channel.id
+    await ctx.send(f"Le rôle {role.name} sera donné après {invites} invitations. Les logs seront envoyés dans {log_channel.mention}.")
 
 @bot.event
 async def on_member_join(member):
@@ -69,10 +64,13 @@ async def on_member_join(member):
 
         # Attribution du rôle si le quota est atteint
         if needed and role and user_invitations[inviter.id] >= needed:
-            inviter_member = guild.get_member(inviter.id)
-            if inviter_member and role not in inviter_member.roles:
-                await inviter_member.add_roles(role)
-                await inviter_member.send(f"Bravo, tu as accès maintenant au rôle {role.name} !")
+            try:
+                inviter_member = await guild.fetch_member(inviter.id)  # Récupérer le membre même s'il n'est pas en cache
+                if inviter_member and role not in inviter_member.roles:
+                    await inviter_member.add_roles(role)
+                    await inviter_member.send(f"Bravo, tu as accès maintenant au rôle {role.name} !")
+            except discord.NotFound:
+                print(f"Erreur : Impossible de récupérer {inviter} sur le serveur {guild.name}.")
 
 media_only_channels = set()
 
