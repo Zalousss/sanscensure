@@ -14,7 +14,8 @@ bot = commands.Bot(command_prefix='+', intents=intents)
 invite_tracker = {}
 invitations_needed = {}  # Stocke le nombre d'invitations requises par serveur
 role_rewards = {}  # Stocke le rôle à donner par serveur
-user_invitations = defaultdict(int)  # Stocke le nombre d'invitations par utilisateur 
+user_invitations = defaultdict(int)  # Stocke le nombre d'invitations par utilisateur
+invite_log_channel = {}  # Stocke l'ID du salon où envoyer les notifications
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 @bot.event
@@ -30,12 +31,18 @@ async def inviteset(ctx, invites: int, role: discord.Role):
     role_rewards[ctx.guild.id] = role
     await ctx.send(f"Le rôle {role.name} sera donné après {invites} invitations.")
 
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def invitechannel(ctx, channel: discord.TextChannel):
+    invite_log_channel[ctx.guild.id] = channel.id
+    await ctx.send(f"Les notifications d'invitations seront envoyées dans {channel.mention}.")
+
 @bot.event
 async def on_member_join(member):
     guild = member.guild
     new_invites = await guild.invites()
     old_invites = invite_tracker.get(guild.id, [])
-    
+
     inviter = None
     for invite in new_invites:
         for old_invite in old_invites:
@@ -44,19 +51,28 @@ async def on_member_join(member):
                 break
         if inviter:
             break
-    
+
     invite_tracker[guild.id] = new_invites
-    
+
     if inviter and inviter != member:
         user_invitations[inviter.id] += 1
-        needed = invitations_needed.get(guild.id)
+        needed = invitations_needed.get(guild.id, 0)
         role = role_rewards.get(guild.id)
-        
+
+        # Envoi du message dans le salon de logs d'invitations
+        log_channel_id = invite_log_channel.get(guild.id)
+        if log_channel_id:
+            log_channel = guild.get_channel(log_channel_id)
+            if log_channel:
+                invites_left = max(0, needed - user_invitations[inviter.id])
+                await log_channel.send(f"{inviter.mention} a invité {member.mention} et a maintenant {user_invitations[inviter.id]} invitations. Il lui en reste {invites_left} avant d'obtenir le rôle.")
+
+        # Attribution du rôle si le quota est atteint
         if needed and role and user_invitations[inviter.id] >= needed:
-            member_role = guild.get_member(inviter.id)  # Récupérer l'objet Member
-            if member_role and role not in member_role.roles:
-                await member_role.add_roles(role)
-                await member_role.send(f"Bravo, tu as accès maintenant au rôle {role.name} !")
+            inviter_member = guild.get_member(inviter.id)
+            if inviter_member and role not in inviter_member.roles:
+                await inviter_member.add_roles(role)
+                await inviter_member.send(f"Bravo, tu as accès maintenant au rôle {role.name} !")
 
 media_only_channels = set()
 
